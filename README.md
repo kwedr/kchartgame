@@ -1,3 +1,3 @@
 # kchartgame
 
-This Project is futures game for TAIFEX.
+This project is a futures game for TAIFEX.
