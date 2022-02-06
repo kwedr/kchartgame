@@ -45,12 +45,6 @@ class DDEConfigDlg (QtWidgets.QWidget):
     def change_run_enable (self):
         pass
 
-    def run (self):
-        self.setUpdatesEnabled (False)
-        self.updateBySettings ()
-        self.setUpdatesEnabled (True)
-        self.show ()
-
     def updateBySettings (self):
         enable = SettingFactor().getDDEEnable()
         if enable != "":

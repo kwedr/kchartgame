@@ -1,10 +1,7 @@
-import re
-import math
+import re, math, datetime, time
 import pandas as pd
 import PySide2.QtCore as QtCore
 import PySide2.QtWidgets as QtWidgets
-import datetime
-
 from singleton import Singleton
 from signalFactor import SignalFactor
 from profilerFactor import ProfilerFactor
@@ -12,9 +9,11 @@ from signalFactor import SignalFactor
 from PyWinDDE import DDEClient
 from types import SimpleNamespace
 from settingFactor import SettingFactor
+from brokerFactor import BrokerFactor
+from plugin.yahooQuote import YahooAgent
 
 class TickFactor (Singleton):
-    def __init__ (self):
+    def _init__ (self):
         pass
 
     def init (self, mainwindow):
@@ -22,6 +21,8 @@ class TickFactor (Singleton):
         self.data = None
         self.dde = None
         self.review_timer = None
+        self.run_review_old_next_tick = 0
+
         SignalFactor ().sign_loadfile.connect (self.loadfile)
         SignalFactor ().sign_loadfile_rand.connect (self.loadfile_rand)
         SignalFactor ().sign_review_run.connect (self.review_run)
@@ -29,11 +30,16 @@ class TickFactor (Singleton):
         SignalFactor ().sign_review_suspend.connect (self.review_suspend)
         SignalFactor ().sign_dde_config_done.connect (self.dde_config_done)
         SignalFactor ().sign_review_goto.connect (self.review_goto)
+        SignalFactor ().sign_review_prev.connect (self.review_prev)
+        SignalFactor ().sign_review_next.connect (self.review_next)
+        SignalFactor ().sign_yahoo_config_done.connect (self.yahoo_config_done)
+        SignalFactor ().sign_kbar_interval_change.connect (self.kbar_interval_change)
+
 
     def loadfile (self, filename):
         if filename.endswith (".rpt"):
             self.loadRPT (filename)
-        elif filename.endswith (".cvs"):
+        elif filename.endswith (".csv"):
             self.loadRPT (filename)
         pass
 
@@ -132,10 +138,17 @@ class TickFactor (Singleton):
         self.curr_time = self.next_time
         delta = datetime.timedelta(seconds=1)
         self.next_time = self.curr_time + delta
-        filter1 = self.review_tick['Date_Time'] >= self.curr_time
-        filter2 = self.review_tick['Date_Time'] < self.next_time
-        pd = self.review_tick[filter1 & filter2]
-        pd_len = len(pd)
+        end_idx = next_idx
+        pd_len = 0
+        for i in range (next_idx, self.review_tick.shape[0]):
+            if self.review_tick.iloc[i]['Date_Time'] >= self.next_time:
+                break
+            pd_len = pd_len + 1
+
+        #filter1 = self.review_tick['Date_Time'] >= self.curr_time
+        #filter2 = self.review_tick['Date_Time'] < self.next_time
+        #pd = self.review_tick[filter1 & filter2]
+        #pd_len = pd.shape[0]
         self.review_timer_curr_interval = math.floor (self.review_timer_interval / self.review_timer_speed)
         if pd_len > 0:
             self.review_timer_curr_interval = math.floor (self.review_timer_curr_interval / pd_len)
@@ -147,7 +160,7 @@ class TickFactor (Singleton):
     def review_interval (self):
         old_tick_idx = self.review_tick_idx
         self.review_tick_idx = self.review_tick_idx + 1
-        data_len = len(self.review_tick)
+        data_len = self.review_tick.shape[0]
         if self.review_tick_idx >= data_len:
             self.review_timer.stop ()
             return
@@ -183,6 +196,7 @@ class TickFactor (Singleton):
             self.dde_run ()
         else:
             del self.dde
+            self.dde = None
 
     def dde_run (self):
         if self.dde:
@@ -200,9 +214,7 @@ class TickFactor (Singleton):
             self.dde.advise(SettingFactor().getDDEAdviseAsk(), self.dde_callback_best_ask)
         if SettingFactor().getDDEAdviseBid() != "":
             self.dde.advise(SettingFactor().getDDEAdviseBid(), self.dde_callback_best_bid)
-
-        from datetime import datetime
-        SignalFactor().sign_run_init.emit ({'start_time' : datetime.now().strftime("%Y%m%d%H%M")})
+        SignalFactor().sign_run_init.emit ({'start_time' : datetime.datetime.now().strftime("%Y%m%d%H%M")})
 
     def dde_callback_price (self, value, item):
         values = value.split (';')
@@ -263,6 +275,8 @@ class TickFactor (Singleton):
         count = df.shape[0]
         progress = QtWidgets.QProgressDialog ("Progress...", "Cancel", 0, count)
         progress.setWindowModality(QtCore.Qt.WindowModal)
+        progress.setCancelButton(None)
+        progress.setWindowFlags(QtCore.Qt.Dialog | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowTitleHint)
         progress.forceShow()
 
         start_idx = 0
@@ -272,9 +286,9 @@ class TickFactor (Singleton):
             progress.setValue(tick_idx)
             now_time = self.review_tick.iat[tick_idx, 5]
 
-            if now_time - start_time >= pd.Timedelta(minutes=1):
+            if now_time - start_time >= pd.Timedelta(seconds=SettingFactor().KBarInterval):
                 open = self.review_tick.iat[start_idx, 2]
-                close = self.review_tick.iat[tick_idx-1, 0]
+                close = self.review_tick.iat[tick_idx, 0]
                 ary = [self.review_tick.iat[i, 0] for i in range(start_idx, tick_idx) ]
                 high = max (ary)
                 low = min (ary)
@@ -291,13 +305,86 @@ class TickFactor (Singleton):
         tick = SimpleNamespace (Date_Time = start_time, Close = close, High = high, Low = low, Open = open)
         SignalFactor().sign_tick_update.emit (tick)
         self.review_tick_idx = tick_idx
+        self.curr_time = self.review_tick.iat[tick_idx, 5]
+        delta = datetime.timedelta(seconds=1)
+        self.next_time = self.curr_time + delta
 
         SignalFactor().sign_review_goto_done.emit ()
 
         if is_suspend == True:
             ActionFactor().reveiwsuspend.trigger ()
 
+    def review_prev (self):
+        old_tick_idx = self.review_tick_idx
+        curr_time = self.review_tick.iat[old_tick_idx, 5]
+        curr_epoch = curr_time.timestamp() - SettingFactor().KBarInterval
+        lefttime = int (curr_epoch ) % SettingFactor().KBarInterval
+        curr_epoch  = curr_epoch - lefttime
+        prev_time = pd.Timestamp(curr_epoch , unit='s')
+        df = self.review_tick[self.review_tick['Date_Time'] < prev_time]
+        self.review_tick_idx = df.shape[0]
+        curr_time = self.review_tick.iat[self.review_tick_idx, 5]
+        SignalFactor().sign_review_prev_done.emit (curr_time)
+        self.next_time = curr_time
+        self.review_tick_idx = self.review_tick_idx -1
+        self.review_timer.setInterval (0)
+
+    def review_next (self):
+        if self.run_review_old_next_tick == self.review_tick_idx:
+            self.review_tick_idx = self.review_tick_idx + 1
+        old_tick_idx = self.review_tick_idx
+        curr_time = self.review_tick.iat[old_tick_idx, 5]
+        curr_epoch  = curr_time.timestamp()
+        next_epoch = curr_time.timestamp() + SettingFactor().KBarInterval
+        lefttime = int (curr_epoch) % SettingFactor().KBarInterval
+        curr_epoch = curr_epoch - lefttime
+        curr_time = pd.Timestamp(curr_epoch , unit='s')
+        next_time = pd.Timestamp(next_epoch , unit='s')
+        df_curr = self.review_tick[self.review_tick['Date_Time'] < curr_time]
+        df_next = self.review_tick[self.review_tick['Date_Time'] < next_time]
+        start_idx = df_curr.shape[0]
+        end_idx = df_next.shape[0]
+
+        ticks = []
+        tick = None
+        for i in range (start_idx, end_idx):
+            curr = self.review_tick.iloc[i]
+            if not tick is None:
+                if tick.Date_Time.timestamp() - curr.Date_Time.timestamp() >= SettingFactor().KBarInterval:
+                    ticks.append (tick)
+                    tick = None
+                else:
+                    tick.Close = curr.Close
+                    tick.High = max (tick.High, curr.Close)
+                    tick.Low = min (tick.Low, curr.Close)
+
+            if tick is None:
+                tick = SimpleNamespace (Date_Time = curr.Date_Time, Close = curr.Close, High = curr.High, Low = curr.Low, Open = curr.Open)
+
+        if tick:
+            ticks.append (tick)
+
+        self.review_tick_idx = i-1
+        self.run_review_old_next_tick = self.review_tick_idx
+        self.next_time = curr.Date_Time
+        self.review_timer.setInterval (0)
+        SignalFactor().sign_review_next_done.emit (ticks)
+
+    def yahoo_callback_price (self, value):
+        SignalFactor().sign_tick_update.emit (value)
+
+    def yahoo_config_done (self):
+        SignalFactor().sign_run_init.emit ({})
+
+        yahoo = YahooAgent()
+        yahoo.init ()
+        yahoo.setCallback (self.yahoo_callback_price)
+        yahoo.run_start ()
+
+    def kbar_interval_change (self):
+        if hasattr(self, 'next_time') == False:
+            return
+        tick_time = QtCore.QTime(self.next_time.hour, self.next_time.minute, self.next_time.second)
+        self.review_goto (tick_time)
 
 
-                
-        

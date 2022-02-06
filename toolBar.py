@@ -60,17 +60,25 @@ class ToolBar ():
     df_btn_open = 0
     df_btn_save = 1
     df_btn_connect_config = 2
-    df_btn_reviewconfig = 3
-    df_btn_reveiwrun = 4
-    df_btn_reveiwsuspend = 5
-    df_btn_reveiwstop = 6
-    df_btn_reveiwslower = 7
-    df_btn_reveiwfaster = 8
-    df_btn_zoom_x = 9
-    df_btn_zoom_y = 10
-    df_btn_mark = 11
-    df_btn_max = 12
-
+    df_btn_reconnect = 3
+    df_btn_reviewconfig = 4
+    df_btn_reveiwrun = 5
+    df_btn_reveiwsuspend = 6
+    df_btn_reveiwstop = 7
+    df_btn_reveiwprev = 8
+    df_btn_reveiwnext = 9
+    df_btn_reveiwslower = 10
+    df_btn_reveiwfaster = 11
+    df_btn_zoom_x = 12
+    df_btn_zoom_y = 13
+    df_btn_mark = 14
+    df_btn_hline = 15
+    df_btn_k30s = 16
+    df_btn_k1m = 27
+    df_btn_k5m = 28
+    df_btn_k10m = 29
+    df_btn_max = 30
+    
     df_btn_review_start = df_btn_reviewconfig
     df_btn_review_end = df_btn_reveiwfaster +1
 
@@ -102,6 +110,12 @@ class ToolBar ():
         self.toolbar.addWidget(btn)
         self.btn[ToolBar.df_btn_connect_config] = btn
 
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.reconnect)
+        btn.setCheckable (True)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_reconnect] = btn
+
         self.toolbar.addSeparator ()
 
         btn = QtWidgets.QToolButton ()
@@ -128,6 +142,16 @@ class ToolBar ():
         self.btn[ToolBar.df_btn_reveiwstop] = btn
 
         btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.reveiwprev)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_reveiwprev] = btn
+
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.reveiwnext)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_reveiwnext] = btn
+
+        btn = QtWidgets.QToolButton ()
         btn.setDefaultAction (action_factor.reveiwslower)
         self.toolbar.addWidget(btn)
         self.btn[ToolBar.df_btn_reveiwslower] = btn
@@ -143,6 +167,7 @@ class ToolBar ():
         self.toolbar.addSeparator ()
         self.timeedit = Time24Edit ()
         self.timeedit.setMaximumWidth (150)
+        self.timeedit.setTime (QtCore.QTime (9, 0, 0))
         self.toolbar.addWidget(self.timeedit)
 
         btn = QtWidgets.QPushButton ()
@@ -157,6 +182,7 @@ class ToolBar ():
         btn = QtWidgets.QToolButton ()
         btn.setDefaultAction (action_factor.zome_x)
         btn.setCheckable (True)
+        btn.setChecked (True)
         action_factor.zome_x.triggered.connect (self.click_btn_zome_x)
         self.toolbar.addWidget(btn)
         self.btn[ToolBar.df_btn_zoom_x] = btn
@@ -164,6 +190,7 @@ class ToolBar ():
         btn = QtWidgets.QToolButton ()
         btn.setDefaultAction (action_factor.zome_y)
         btn.setCheckable (True)
+        btn.setChecked (True)
         action_factor.zome_y.triggered.connect (self.click_btn_zome_y)
         self.toolbar.addWidget(btn)
         self.btn[ToolBar.df_btn_zoom_y] = btn
@@ -171,13 +198,44 @@ class ToolBar ():
         btn = QtWidgets.QToolButton ()
         btn.setDefaultAction (action_factor.mark)
         btn.setCheckable (True)
+        btn.setChecked (True)
         action_factor.mark.triggered.connect (self.click_btn_mark)
         self.toolbar.addWidget(btn)
         self.btn[ToolBar.df_btn_mark] = btn
 
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.hline)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_hline] = btn
+
+        self.toolbar.addSeparator ()
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.k30s)
+        btn.setCheckable (True)
+        btn.triggered.connect(self.connect_btn_k30s)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_k30s] = btn
+
+        self.toolbar.addSeparator ()
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.k1m)
+        btn.setCheckable (True)
+        btn.setChecked (True)
+        btn.triggered.connect(self.connect_btn_k1m)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_k1m] = btn
+
+        self.toolbar.addSeparator ()
+        btn = QtWidgets.QToolButton ()
+        btn.setDefaultAction (action_factor.k5m)
+        btn.setCheckable (True)
+        btn.triggered.connect(self.connect_btn_k5m)
+        self.toolbar.addWidget(btn)
+        self.btn[ToolBar.df_btn_k5m] = btn
+
         SignalFactor ().sign_run_init.connect (self.run_init)
         SignalFactor ().sign_review_speed_change.connect (self.review_speed_change)
-        SignalFactor ().sign_dde_config_done.connect (self.dde_config_done)
+        SignalFactor ().sign_connect_config_done.connect (self.connect_config_done)
     
     def run_init (self):
         self.reviewspeed.setText ("{}x".format(1))
@@ -210,11 +268,27 @@ class ToolBar ():
         checked = btn.isChecked() 
         btn.setChecked (not checked)
 
-    def dde_config_done  (self):
-        enable = True if SettingFactor().getDDEEnable () != "" else False
+    def connect_config_done  (self):
+        enable1 = True if SettingFactor().getDDEEnable () != "" else False
+
         btn = self.btn[ToolBar.df_btn_connect_config]
-        btn.setChecked (enable)
+        btn.setChecked (enable1)
 
     def click_btn_reviewgoto (self):
         go_time = self.timeedit.time ()
         SignalFactor().sign_review_goto.emit (go_time)
+
+    def connect_btn_k30s (self):
+        self.btn[ToolBar.df_btn_k30s].setChecked (True)
+        self.btn[ToolBar.df_btn_k1m].setChecked (False)
+        self.btn[ToolBar.df_btn_k5m].setChecked (False)
+
+    def connect_btn_k1m (self):
+        self.btn[ToolBar.df_btn_k30s].setChecked (False)
+        self.btn[ToolBar.df_btn_k1m].setChecked (True)
+        self.btn[ToolBar.df_btn_k5m].setChecked (False)
+
+    def connect_btn_k5m (self):
+        self.btn[ToolBar.df_btn_k30s].setChecked (False)
+        self.btn[ToolBar.df_btn_k1m].setChecked (False)
+        self.btn[ToolBar.df_btn_k5m].setChecked (True)

@@ -16,6 +16,7 @@ from reviewConfigDialog import ReviewConfigDlg
 from connectConfigDialog import ConnectConfigDlg
 from statusBar import StatusBar
 from settingFactor import SettingFactor
+from hlineConfigDialog import HLineConfigDlg
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -28,15 +29,17 @@ class MainWindow(QMainWindow):
         self.toolbar = ToolBar (self)
         self.statusbar = StatusBar (self)
 
-        self.dockWidgetCandel = QDockWidget('CandleView', self)
-        self.dockWidgetCandel.setMinimumSize(QtCore.QSize(600, 400))
-        self.WidgetCandel = CandlestickChartWidget()
-        self.dockWidgetCandel.setWidget(self.WidgetCandel)
-        self.dockWidgetCandel.setFloating(False)
+        self.dockWidgetCandle = QDockWidget('CandleView', self)
+        #self.dockWidgetCandle.setMinimumSize(QtCore.QSize(600, 400))
+        self.dockWidgetCandle.resize(QtCore.QSize(800, 400))
+        self.WidgetCandle = CandlestickChartWidget()
+        self.dockWidgetCandle.setWidget(self.WidgetCandle)
+        self.dockWidgetCandle.setFloating(False)
 
         self.dockWidgetPriceLadder = QDockWidget('PriceLadder', self)
         self.dockWidgetPriceLadder.setMinimumWidth(200)
         self.dockWidgetPriceLadder.setMaximumWidth(500)
+        #self.dockWidgetPriceLadder.resize(QtCore.QSize(200, 500))
         self.WidgetPriceLadder = PriceLadderWidget(self)
         self.dockWidgetPriceLadder.setWidget(self.WidgetPriceLadder)
         self.dockWidgetPriceLadder.setFloating(False)
@@ -44,22 +47,26 @@ class MainWindow(QMainWindow):
         self.dockWidgetRecordTrade = QDockWidget('RecordTrade', self)
         self.dockWidgetRecordTrade.setMinimumWidth(200)
         self.dockWidgetRecordTrade.setMaximumWidth(500)
+        #self.dockWidgetRecordTrade.resize(QtCore.QSize(200, 500))
         self.WidgeRecordTrade = RecordTradeWidget(self)
         self.dockWidgetRecordTrade.setWidget(self.WidgeRecordTrade)
         self.dockWidgetRecordTrade.setFloating(False)
 
-        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockWidgetCandel)
+        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockWidgetCandle)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.dockWidgetPriceLadder)
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.dockWidgetRecordTrade)
+        self.tabifyDockWidget (self.dockWidgetPriceLadder, self.dockWidgetRecordTrade)
+        self.dockWidgetPriceLadder.raise_()
 
-        self.setCorner(QtCore.Qt.TopLeftCorner,     QtCore.Qt.LeftDockWidgetArea)
-        self.setCorner(QtCore.Qt.BottomLeftCorner,  QtCore.Qt.LeftDockWidgetArea)
-        self.setCorner(QtCore.Qt.BottomRightCorner,    QtCore.Qt.RightDockWidgetArea)
-        self.setCorner(QtCore.Qt.BottomRightCorner, QtCore.Qt.RightDockWidgetArea)
+        #self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.dockWidgetRecordTrade)
+
+        #self.setCorner(QtCore.Qt.TopLeftCorner,     QtCore.Qt.LeftDockWidgetArea)
+        #self.setCorner(QtCore.Qt.BottomLeftCorner,  QtCore.Qt.LeftDockWidgetArea)
+        #self.setCorner(QtCore.Qt.BottomRightCorner, QtCore.Qt.RightDockWidgetArea)
 
         SignalFactor ().sign_tick_update.connect (self.debug_tick_update)
         SignalFactor ().sign_connect_config.connect (self.connect_config)
         SignalFactor ().sign_review_config.connect (self.review_config)
+        SignalFactor ().sign_hline_config.connect (self.hline_config)
 
     def init_factor (self):
         LogFactor ().init (self)
@@ -81,7 +88,11 @@ class MainWindow(QMainWindow):
     def debug_tick_update (self, tick):
         #LogFactor().debug ("tick: {} close:{} volumn:{}".format (tick.Date_Time, tick.Close, tick.Volumn))
         pass
-    
+
+    def hline_config(self):
+        dlg = HLineConfigDlg (self)
+        dlg.run ()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setApplicationName("kchartgame")

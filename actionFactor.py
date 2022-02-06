@@ -34,8 +34,8 @@ class ActionFactor (Singleton):
         self.exit.setStatusTip('Exit')
         self.exit.triggered.connect(mainwindow.close)
 
-        self.reveiwspeed = 0
-        self.reveiwspeedlist = [1, 2, 4, 8, 16, 32, 64]
+        self.reveiwspeed = 1
+        self.reveiwspeedlist = [0.5, 1, 2, 4, 8, 16]
         self.reveiwrun = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/131.png"), '&Run', mainwindow)
         self.reveiwrun.setShortcut('F5')
         self.reveiwrun.setStatusTip('RUN')
@@ -51,17 +51,27 @@ class ActionFactor (Singleton):
         self.reveiwstop.setStatusTip('Stop')
         self.reveiwstop.triggered.connect(self.action_reveiwStop)
 
-        self.reveiwfaster = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/135.png"), '&Faster', mainwindow)
+        self.reveiwprev = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/136.png"), '&Prev', mainwindow)
+        self.reveiwprev.setShortcut('Ctrl+Left')
+        self.reveiwprev.setStatusTip('Prev')
+        self.reveiwprev.triggered.connect(self.action_reveiwPrev)
+
+        self.reveiwnext= QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/135.png"), '&Next', mainwindow)
+        self.reveiwnext.setShortcut('Ctrl+Right')
+        self.reveiwnext.setStatusTip('Next')
+        self.reveiwnext.triggered.connect(self.action_reveiwNext)
+
+        self.reveiwfaster = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/129.png"), '&Faster', mainwindow)
         self.reveiwfaster.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL | QtCore.Qt.Key_Plus))
         self.reveiwfaster.setStatusTip('Faster')
         self.reveiwfaster.triggered.connect(self.action_reveiwFaster)
 
-        self.reveiwslower = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/136.png"), '&Slower', mainwindow)
+        self.reveiwslower = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/130.png"), '&Slower', mainwindow)
         self.reveiwslower.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL | QtCore.Qt.Key_Minus))
         self.reveiwslower.setStatusTip('Slower')
         self.reveiwslower.triggered.connect(self.action_reveiwSlower)
 
-        self.reviewconfig = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/087.png"), '&Slower', mainwindow)
+        self.reviewconfig = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/087.png"), '&Config', mainwindow)
         self.reviewconfig.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL | QtCore.Qt.Key_K))
         self.reviewconfig.setStatusTip('Config')
         self.reviewconfig.triggered.connect(self.action_reveiwConfig)
@@ -81,6 +91,11 @@ class ActionFactor (Singleton):
         self.mark.setStatusTip('Mark')
         self.mark.triggered.connect(self.action_mark)
 
+        self.hline = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/203.png"), '&HLine', mainwindow)
+        self.hline.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_H))
+        self.hline.setStatusTip('HLine')
+        self.hline.triggered.connect(self.action_hline_config)
+
         self.connectconfig = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/041.png"), '&Connect', mainwindow)
         self.connectconfig.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_E))
         self.connectconfig.setStatusTip('ConnectConfig')
@@ -89,10 +104,26 @@ class ActionFactor (Singleton):
         self.reviewgoto = QtWidgets.QAction(None, '&Goto', mainwindow)
         self.reviewgoto.triggered.connect(self.action_reveiwgoto)
 
+        self.reconnect = QtWidgets.QAction(QtGui.QIcon("icon/diagona-icons-1.0/icons/16/125.png"), '&ReConnect', mainwindow)
+        self.reconnect.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_R))
+        self.reconnect.setStatusTip('ReConnect')
+        self.reconnect.triggered.connect(self.action_reconnect)
+
+        self.k30s = QtWidgets.QAction("30s", mainwindow)
+        self.k30s.setStatusTip('30s')
+        self.k30s.triggered.connect(self.action_k30s)
+
+        self.k1m = QtWidgets.QAction("1m", mainwindow)
+        self.k1m.setStatusTip('1m')
+        self.k1m.triggered.connect(self.action_k1m)
+
+        self.k5m = QtWidgets.QAction("5m", mainwindow)
+        self.k5m.setStatusTip('5m')
+        self.k5m.triggered.connect(self.action_k5m)
+
     def action_openFile (self):
-        filters = ('RPT (*.rpt);;'
-                   'CVS (*.cvs);;'
-                   'Zip (*.zip);;')
+        filters = ('default (*.rpt *.csv);;'
+                   'all file (*.*);;')
 
         filename = QtWidgets.QFileDialog.getOpenFileName(self.mainwindow, 'Open File', './', filter=filters)[0]
         SignalFactor().sign_loadfile.emit (filename)
@@ -110,7 +141,7 @@ class ActionFactor (Singleton):
         QtWidgets.QMessageBox.about(self.mainwindow, "Message", "Save File Finish")
 
     def action_reveiwRun (self):
-        self.reveiwspeed = 0
+        self.reveiwspeed = 1
         id = SettingFactor().getReviewConfigID()
         month = SettingFactor().getReviewConfigMonth()
         start_time = SettingFactor().getReviewConfigStartDate() + SettingFactor().getReviewConfigStartTime()
@@ -128,10 +159,16 @@ class ActionFactor (Singleton):
     def action_reveiwStop (self):
         pass
 
+    def action_reveiwPrev (self):
+        SignalFactor().sign_review_prev.emit ()
+
+    def action_reveiwNext (self):
+        SignalFactor().sign_review_next.emit ()
+
     def action_reveiwFaster (self):
         self.reveiwspeed = self.reveiwspeed + 1
         if (self.reveiwspeed >= len(self.reveiwspeedlist)):
-            self.reveiwspeed = len(self.reveiwspeedlist)
+            self.reveiwspeed = len(self.reveiwspeedlist)-1
         SignalFactor().sign_review_speed_change.emit (self.reveiwspeedlist[self.reveiwspeed])
 
     def action_reveiwSlower (self):
@@ -152,9 +189,30 @@ class ActionFactor (Singleton):
     def action_mark (self):
         SignalFactor().sign_mark.emit ()
 
+    def action_hline_config (self):
+        SignalFactor().sign_hline_config.emit ()
+
     def action_connect_config (self):
         SignalFactor().sign_connect_config.emit ()
 
     def action_reveiwgoto (self):
         pass
+    
+    def action_reconnect (self):
+        SignalFactor().sign_reconnect.emit ()
+        SignalFactor().sign_reconnect_done.emit ()
 
+    def action_k30s (self):
+        SettingFactor().setKBarInterval ('30s')
+        SignalFactor().sign_kbar_interval_change_init.emit ()
+        SignalFactor().sign_kbar_interval_change.emit ()
+
+    def action_k1m (self):
+        SettingFactor().setKBarInterval ('1m')
+        SignalFactor().sign_kbar_interval_change_init.emit ()
+        SignalFactor().sign_kbar_interval_change.emit ()
+
+    def action_k5m (self):
+        SettingFactor().setKBarInterval ('5m')
+        SignalFactor().sign_kbar_interval_change_init.emit ()
+        SignalFactor().sign_kbar_interval_change.emit ()
